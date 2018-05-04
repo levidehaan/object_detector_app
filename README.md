@@ -2,6 +2,10 @@
 
 A real-time object recognition application using [Google's TensorFlow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection) and [OpenCV](http://opencv.org/).
 
+```bash
+pip install https://github.com/fo40225/tensorflow-windows-wheel/raw/master/1.7.0/py36/GPU/cuda91cudnn71sse2/tensorflow_gpu-1.7.0-cp36-cp36m-win_amd64.whl
+```
+
 ## Getting Started
 1. `conda env create -f environment.yml`
 2. `python object_detection_app.py` / `python object_detection_multithreading.py`

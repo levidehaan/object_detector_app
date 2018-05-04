@@ -14,7 +14,7 @@ from object_detection.utils import visualization_utils as vis_util
 CWD_PATH = os.getcwd()
 
 # Path to frozen detection graph. This is the actual model that is used for the object detection.
-MODEL_NAME = 'ssd_mobilenet_v1_coco_11_06_2017'
+MODEL_NAME = 'faster_rcnn_inception_resnet_v2_atrous_coco_11_06_2017'
 PATH_TO_CKPT = os.path.join(CWD_PATH, 'object_detection', MODEL_NAME, 'frozen_inference_graph.pb')
 
 # List of the strings that is used to add correct label for each box.
@@ -28,25 +28,34 @@ categories = label_map_util.convert_label_map_to_categories(label_map, max_num_c
                                                             use_display_name=True)
 category_index = label_map_util.create_category_index(categories)
 
-
 def detect_objects(image_np, sess, detection_graph):
     # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
     image_np_expanded = np.expand_dims(image_np, axis=0)
+    # tf.summary.image('image', image_np_expanded)
+
     image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
+    # tf.summary.tensor_summary("image_tensor", image_tensor, "the image tensor")
 
     # Each box represents a part of the image where a particular object was detected.
     boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
-
+    # tf.summary.tensor_summary("detection_boxes_tensor", boxes, "The detection boxes tensor")
     # Each score represent how level of confidence for each of the objects.
     # Score is shown on the result image, together with the class label.
     scores = detection_graph.get_tensor_by_name('detection_scores:0')
-    classes = detection_graph.get_tensor_by_name('detection_classes:0')
-    num_detections = detection_graph.get_tensor_by_name('num_detections:0')
+    # tf.summary.tensor_summary("detection_scores_tensor", scores, "The detection scores tensor")
 
+    classes = detection_graph.get_tensor_by_name('detection_classes:0')
+    # tf.summary.tensor_summary("detection_classes_tensor", classes, "The detection classes tensor")
+
+    num_detections = detection_graph.get_tensor_by_name('num_detections:0')
+    # tf.summary.scalar('detections', num_detections)
     # Actual detection.
+
+
     (boxes, scores, classes, num_detections) = sess.run(
         [boxes, scores, classes, num_detections],
         feed_dict={image_tensor: image_np_expanded})
+
 
     # Visualization of the results of a detection.
     vis_util.visualize_boxes_and_labels_on_image_array(
@@ -62,25 +71,27 @@ def detect_objects(image_np, sess, detection_graph):
 
 def worker(input_q, output_q):
     # Load a (frozen) Tensorflow model into memory.
-    detection_graph = tf.Graph()
-    with detection_graph.as_default():
-        od_graph_def = tf.GraphDef()
-        with tf.gfile.GFile(PATH_TO_CKPT, 'rb') as fid:
-            serialized_graph = fid.read()
-            od_graph_def.ParseFromString(serialized_graph)
-            tf.import_graph_def(od_graph_def, name='')
+    with tf.device('/device:GPU:0'):
+        detection_graph = tf.Graph()
+        with detection_graph.as_default():
+            od_graph_def = tf.GraphDef()
+            with tf.gfile.GFile(PATH_TO_CKPT, 'rb') as fid:
+                serialized_graph = fid.read()
+                od_graph_def.ParseFromString(serialized_graph)
+                tf.import_graph_def(od_graph_def, name='')
 
         sess = tf.Session(graph=detection_graph)
+        # writer = tf.summary.FileWriter("output", sess.graph)
+        fps = FPS().start()
+        while True:
+            fps.update()
+            frame = input_q.get()
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            output_q.put(detect_objects(frame_rgb, sess, detection_graph))
 
-    fps = FPS().start()
-    while True:
-        fps.update()
-        frame = input_q.get()
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        output_q.put(detect_objects(frame_rgb, sess, detection_graph))
-
-    fps.stop()
-    sess.close()
+        fps.stop()
+        # writer.close()
+        sess.close()
 
 
 if __name__ == '__main__':
@@ -115,7 +126,7 @@ if __name__ == '__main__':
                                       width=args.width,
                                       height=args.height).start()
 
-    
+
     fps = FPS().start()
 
     while True:  # fps._numFrames < 120

@@ -42,7 +42,7 @@ dependencies:
   - html5lib==0.9999999
   - markdown==2.2.0
   - protobuf==3.3.0
-  - tensorflow==1.2.0
+  - tensorflow==https://github.com/fo40225/tensorflow-windows-wheel/raw/master/1.7.0/py36/GPU/cuda91cudnn71sse2/tensorflow_gpu-1.7.0-cp36-cp36m-win_amd64.whl
   - werkzeug==0.12.2
   - scipy
 prefix: /Users/datitran/anaconda/envs/object-detection
